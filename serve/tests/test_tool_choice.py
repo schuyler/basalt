@@ -81,7 +81,7 @@ class Parsing(unittest.TestCase):
     def test_forcing(self):
         tools = [{"name": "a"}, {"name": "b"}]
         self.assertEqual(forced_call("auto", tools), (tools, None))
-        self.assertEqual(forced_call("none", tools), (None, None))
+        self.assertEqual(forced_call("none", tools), (tools, None))
         self.assertEqual(forced_call("required", tools), (tools, "<tool_call>\n<function="))
         self.assertEqual(forced_call("required", tools[:1]), (tools[:1], "<tool_call>\n<function=a>\n"))
         self.assertEqual(forced_call({"type": "tool", "name": "b"}, tools), (tools, "<tool_call>\n<function=b>\n"))
@@ -113,9 +113,6 @@ class Base(unittest.TestCase):
         except urllib.error.HTTPError as e:
             with e:
                 return e.code, json.loads(e.read())
-
-    def offered(self):
-        return "search the web" in self.tok.decode(self.engine.prompts[0])
 
     def opening(self, name):
         return "<tool_call>\n<function=" + (name + ">\n" if name else "")
@@ -183,6 +180,7 @@ class OpenAI(Base):
         self.assertEqual(second, first + self.tok.encode(CallingEngine.THOUGHT[:20]) + extra)
 
     def test_auto_absent_and_none_leave_it_to_the_model(self):
+        first_prompts = []
         for extra in ({}, {"tool_choice": "auto"}, {"tool_choice": "none"}):
             with self.subTest(extra=extra):
                 self.engine.prompts = []
@@ -194,7 +192,9 @@ class OpenAI(Base):
                 for later in self.engine.prompts[1:]:
                     self.assertEqual(later[:len(first)], first)
                     self.assertNotIn("<tool_call>", self.tok.decode(later[len(first):]))
-                self.assertEqual(self.offered(), extra.get("tool_choice") != "none")
+                first_prompts.append(first)
+        self.assertEqual(len(set(map(tuple, first_prompts))), 1)
+        self.assertIn("search the web", self.tok.decode(first_prompts[0]))
 
     def test_flat_shape_names_a_function(self):
         finish, calls, _ = self.call_of(*self.chat(tool_choice={"type": "function", "name": "search"}), False)
@@ -261,6 +261,7 @@ class Anthropic(Base):
                             self.assertTrue(self.tok.decode(self.engine.prompts[0]).endswith(self.opening(name)))
 
     def test_auto_and_none(self):
+        first_prompts = []
         for choice in (None, {"type": "auto"}, {"type": "none"}):
             with self.subTest(choice=choice):
                 self.engine.prompts = []
@@ -268,7 +269,19 @@ class Anthropic(Base):
                 code, b = self.msg(**extra)
                 self.assertEqual(code, 200, b)
                 self.assertEqual(b["stop_reason"], "end_turn")
-                self.assertEqual(self.offered(), (choice or {}).get("type") != "none")
+                first_prompts.append(self.engine.prompts[0])
+        self.assertEqual(len(set(map(tuple, first_prompts))), 1)
+        self.assertIn("search the web", self.tok.decode(first_prompts[0]))
+
+    def test_count_tokens_under_none_counts_the_tools(self):
+        counts = {}
+        for choice in ("auto", "none"):
+            code, b = self.post("/v1/messages/count_tokens", {
+                "model": "basalt", "tools": AN, "tool_choice": {"type": choice},
+                "messages": [{"role": "user", "content": "2+2?"}]})
+            self.assertEqual(code, 200, b)
+            counts[choice] = b["input_tokens"]
+        self.assertEqual(counts["none"], counts["auto"])
 
     def test_invalid_choices_are_400s(self):
         for extra in ({"tool_choice": {"type": "tool", "name": "nope"}}, {"tool_choice": {"type": "any"}, "tools": []},
@@ -305,12 +318,15 @@ class Responses(Base):
         self.assertTrue(self.tok.decode(self.engine.prompts[0]).endswith(self.opening(None)))
 
     def test_auto_and_none(self):
+        first_prompts = []
         for choice in ("auto", "none"):
             with self.subTest(choice=choice):
                 self.engine.prompts = []
                 code, b = self.resp(tool_choice=choice)
                 self.assertEqual(self.calls(code, b), [])
-                self.assertEqual(self.offered(), choice == "auto")
+                first_prompts.append(self.engine.prompts[0])
+        self.assertEqual(first_prompts[0], first_prompts[1])
+        self.assertIn("search the web", self.tok.decode(first_prompts[0]))
 
     def test_invalid_choices_are_400s(self):
         for choice in ({"type": "function", "name": "nope"}, "sometimes", {"type": "web_search"}):

@@ -114,6 +114,9 @@ class GrammarOff(Fixture, unittest.TestCase):
         g = self.chat(tools=[STRICT_TOOL], tool_choice="required")
         self.assertEqual(g, {"kind": "tools", "tools": [STRICT_TOOL], "tool_choice": "required"})
 
+    def test_strict_tool_under_tool_choice_none_has_no_grammar(self):
+        self.assertIsNone(self.chat(tools=[STRICT_TOOL], tool_choice="none"))
+
     def test_anthropic_strict_tool(self):
         g = self.sent("/v1/messages", {"model": "basalt", "max_tokens": 50, "messages": [{"role": "user", "content": "hi"}],
                                        "tools": [{"name": "get_weather", "strict": True,
@@ -148,7 +151,7 @@ class GrammarOn(Fixture, unittest.TestCase):
         g = self.chat(tools=[TOOL])
         self.assertEqual(g, {"kind": "tools", "tools": [TOOL], "tool_choice": "auto"})
 
-    def test_tool_choice_none_offers_no_tools(self):
+    def test_tool_choice_none_has_no_grammar(self):
         self.assertIsNone(self.chat(tools=[TOOL], tool_choice="none"))
 
     def test_json_object(self):

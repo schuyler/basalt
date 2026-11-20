@@ -28,10 +28,11 @@ def _as_function(tool: dict) -> dict:
 
 
 def grammar_spec(enabled: bool, tools, tool_choice, raw_tools, response_format) -> dict | None:
-    """The `grammar` value for a request, or None. `tools`: the tools offered (None when there are none or
-    tool_choice is none); `raw_tools`: the request's tools as received, for strict; `response_format`: the chat
+    """The `grammar` value for a request, or None. `tools`: the tools offered (None when there are none);
+    `raw_tools`: the request's tools as received, for strict; `response_format`: the chat
     path's shape ({"type": "json_schema", "json_schema": {...}} or {"type": "json_object"}), None for text.
-    A JSON format with tools under tool_choice auto: the answer is tool calls or the JSON value."""
+    A JSON format with tools under tool_choice auto: the answer is tool calls or the JSON value.  Under tool_choice
+    none the tools are ignored: the answer grammar or None, as with no tools."""
     answer = None
     kind = response_format.get("type") if isinstance(response_format, dict) else None
     if kind == "json_schema":
@@ -40,7 +41,7 @@ def grammar_spec(enabled: bool, tools, tool_choice, raw_tools, response_format) 
             answer = {"kind": "json_schema", "schema": spec["schema"]}
     elif kind == "json_object" and enabled:
         answer = {"kind": "json_object"}
-    if not tools:
+    if not tools or tool_choice_of(tool_choice)[0] == "none":
         return answer
     calls = [_as_function(t) for t in tools]
     if answer and tool_choice_of(tool_choice)[0] == "auto":
