@@ -283,9 +283,6 @@ def request_tools(req: dict):
             skipped.append(kind)                     # the model cannot run OpenAI's hosted tools: left out
         else:
             raise ResponsesError("a tool needs a type", param + ".type")
-    choice = req.get("tool_choice")
-    if choice == "none":
-        return None, names, skipped
     return (stable_tool_order(tools, lambda t: t["name"]) if tools else None), names, skipped
 
 

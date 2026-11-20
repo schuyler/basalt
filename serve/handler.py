@@ -862,7 +862,7 @@ def make_handler(target: Service | Router):
         def _count_tokens(self, req):
             """Anthropic's token count: the rendered, tokenized prompt, without running the model."""
             messages, tools, kw = anthropic_to_messages(req, self.svc.anthropic_think_unasked)
-            tools, _ = forced_call(req.get("tool_choice"), tools, self.svc.dialect.forced_opening)   # same 400 as the request itself ("none": no tools)
+            tools, _ = forced_call(req.get("tool_choice"), tools, self.svc.dialect.forced_opening)   # same 400 as the request itself ("none" keeps the tools)
             stop_strings(req)                                 # same 400 as the request itself
             self._json(200, {"input_tokens": len(self.svc.encode_prompt(messages, tools, kw))})
 

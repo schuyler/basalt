@@ -688,12 +688,11 @@ def tool_choice_of(tool_choice) -> tuple[str, str | None]:
 
 def forced_call(tool_choice, tools: list[dict] | None, opening=None) -> tuple[list[dict] | None, str | None]:
     """`tool_choice` -> (the tools to offer, the text that opens the call the reply must make or None).
-    "none" offers no tools.  There is no grammar: the server writes the opening itself, so the model can only go on
-    with a call.  "required" / Anthropic "any": any tool (the only one is named); a named tool: that one.  A forced
-    choice with no tools, or naming a tool the request lacks, is a ValueError."""
+    "auto" and "none" offer the tools and force nothing ("none" is not enforced: a call the model writes anyway is
+    parsed).  "required" / Anthropic "any": any tool (the only one is named); a named tool: that one.  There is no
+    grammar: the server writes the opening itself, so the model can only go on with a call.  A forced choice with no
+    tools, or naming a tool the request lacks, is a ValueError."""
     kind, name = tool_choice_of(tool_choice)
-    if kind == "none":
-        return None, None
     if kind in ("auto", "none"):
         return tools, None
     names = [t.get("name") for t in tools or []]

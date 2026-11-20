@@ -113,7 +113,8 @@ class Parsing(unittest.TestCase):
         self.assertEqual(names["mcp_fs.read"], ("mcp_fs", "read", "function"))
         self.assertEqual(names["apply_patch"], (None, "apply_patch", "custom"))
         self.assertEqual(skipped, ["web_search"])
-        self.assertIsNone(request_tools({"tools": TOOLS, "tool_choice": "none"})[0])
+        self.assertEqual(request_tools({"tools": TOOLS, "tool_choice": "none"})[0],
+                         request_tools({"tools": TOOLS, "tool_choice": "auto"})[0])
 
     def test_a_function_schema_that_is_not_an_object_is_refused(self):
         for bad in ("x", ["a"], 5, True):
