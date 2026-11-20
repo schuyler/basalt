@@ -3080,31 +3080,33 @@ class ThinkingBudget(unittest.TestCase):
 
     def test_answer_room_uses_the_engine_clipped_cap(self):
         from serve.prompt import PromptText
-        from serve.service import REASONING_CLOSE
+        from serve.service import CTX_SLACK, REASONING_CLOSE
         self.engine.THOUGHT = ThinkingEngine.THOUGHT * 4
         self.engine.takes_text = True
         original = self.engine.generate
 
-        effective_cap = 1024
+        room = 1024
 
         def clipped(ids, max_new, sampling, cancel, embeddings=None, session=None):
             if isinstance(ids, PromptText):
                 yield None                              # waiting for the engine's prompt count
-                ids.set_counted(len(ids.ids()), effective_cap)
-                max_new = effective_cap
+                n = len(ids.ids())
+                self.engine.max_context = n + CTX_SLACK + room
+                ids.set_counted(n, room)
+                max_new = room
                 yield None                              # the PT heartbeat
                 ids = ids.ids()
             yield from original(ids, max_new, sampling, cancel, embeddings)
 
         self.engine.generate = clipped
-        code, b = self.openai(max_tokens=8192)
+        code, b = self.post("/v1/chat/completions", {"model": "basalt", "messages": [{"role": "user", "content": "2+2?"}]})
         self.assertEqual(code, 200, b)
         self.assertEqual(b["choices"][0]["message"]["reasoning_content"],
                          self.engine.THOUGHT[:512] + REASONING_CLOSE.split("</think>")[0])
         self.assertEqual(b["choices"][0]["message"]["content"], ThinkingEngine.ANSWER)
         self.assertLessEqual(b["usage"]["completion_tokens"], 1024)
-        effective_cap = 400
-        code, b = self.openai(max_tokens=8192)
+        room = 400
+        code, b = self.post("/v1/chat/completions", {"model": "basalt", "messages": [{"role": "user", "content": "2+2?"}]})
         self.assertEqual(code, 200, b)
         self.assertEqual(b["choices"][0]["message"]["reasoning_content"],
                          self.engine.THOUGHT[:200] + REASONING_CLOSE.split("</think>")[0])
