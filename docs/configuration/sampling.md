@@ -55,6 +55,8 @@ them, and decode speed stays within a few percent.
 
 - **Budget:** `answer-room` keeps output tokens for the close and the answer by limiting the thinking to the cap minus the reserve. A smaller
   budget (the request's, else the entry's `reasoning-budget-tokens`) still wins. Reserved space does not guarantee a complete answer.
+  A budget limits only the thinking: the reply's cap stays `max_tokens` (unset, or cut by `--fit-max-tokens`: the room
+  the context leaves).
   - `auto` (the default): the reserve is `min(max(512, cap // 4), cap // 2)`. An 8,192-token cap allows 6,144 thinking tokens and keeps
     2,048; a 700-token cap allows 350 and keeps 350. A cap under 32 tokens is left as it is.
   - A whole number `N`: a fixed reserve at any cap, larger or smaller than `auto`'s, so thinking is limited to `cap - N` (`1024` with a
